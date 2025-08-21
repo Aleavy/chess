@@ -9,6 +9,7 @@ const dataLog = document.getElementById("data");
 dataLog.innerText = `W- ${canvas.width} H- ${canvas.height}`;
 
 class Board {
+  tileDistance = 50;
   constructor(contex, canvas) {
     this.ctx = contex;
     this.height = canvas.height;
@@ -53,7 +54,25 @@ class PieceBoard extends Board {
   constructor(context, canvas) {
     super(context, canvas);
     this.pieces = [];
-    this.ctx.translate(10, 20);
+    this.canvas.addEventListener("mousemove", (e) => this.trackMouse(e));
+    this.canvas.addEventListener("mouseonpress", (e) => {
+      this.trackMouse(e);
+    });
+    this.canvas.addEventListener("mouseup", (e) => {
+      this.mousePiece(e);
+    });
+  }
+
+  mousePiece(e) {
+    const Y = Math.round(e.clientY / this.tileDistance);
+    console.log(Y);
+    this.pieces[0].move(Y);
+  }
+
+  trackMouse(e) {
+    const Y = e.offsetY;
+    const X = e.offsetX;
+    dataLog.innerText = `Y-${Y} X-${X}`;
   }
 
   draw() {
@@ -67,8 +86,8 @@ class PieceBoard extends Board {
           360,
           piece.positionX.start,
           piece.positionY.start,
-          30,
-          30
+          50,
+          50
         );
         console.log("Drawed: ", piece);
       };
@@ -99,7 +118,22 @@ class Pawn extends Piece {
   }
 
   move(tiles) {
-    return;
+    const moveTiles = tiles * this.tileDistance;
+    console.log("moving", moveTiles);
+
+    this.img.onload = () => {
+      this.ctx.drawImage(
+        this.img,
+        0,
+        0,
+        360,
+        360,
+        this.positionX.start,
+        moveTiles,
+        50,
+        50
+      );
+    };
   }
 }
 
@@ -109,3 +143,4 @@ const pawn = new Pawn("white", 50, 50, pieceBoard.ctx);
 pieceBoard.addPiece(pawn);
 board.draw();
 pieceBoard.draw();
+pieceBoard.pieces[0].move(0);

@@ -50,31 +50,38 @@ class PieceBoard extends Board {
   constructor(context, canvas) {
     super(context, canvas);
     this.pieces = [];
+    this.current_piece = null
     this.canvas.addEventListener("mousemove", (e) => this.trackMouse(e));
     this.canvas.addEventListener("mousedown", (e) => {
-      this.trackMouse(e);
+      this.current_piece = this.selectPiece(e);
     });
     this.canvas.addEventListener("mouseup", (e) => {
-      this.mousePiece(e);
+      const tilesY = Math.floor(e.offsetY / this.tileDistance);
+      const tilesX = Math.floor(e.offsetX / this.tileDistance);;
+      if(this.current_piece){
+        this.current_piece.move(tilesY)
+        this.current_piece = null;
+      }
     });
   }
 
-  mousePiece(e) {
+  selectPiece(e) {
     console.log(e.offsetY);
-    const tilesY = Math.floor(e.offsetY / this.tileDistance);
-    const tilesX = Math.floor(e.offsetX / this.tileDistance);
-    const piece = this.filterPiece(tilesX, tilesY);
-    piece.move(tilesY);
-  }
+    const piece = this.filterPiece(e.offsetX, e.offsetY);
+    console.log(piece)
+    return piece}
 
   filterPiece(cordX, cordY) {
-    return this.pieces.filter((piece) => {
-      piece.positionX.start <= cordX &&
+    console.log(cordX, cordY)
+    const pieces =  this.pieces.filter((piece) => {
+      if(piece.positionX.start <= cordX &&
         cordX <= piece.positionX.end &&
         piece.positionY.start <= cordY &&
-        cordY <= piece.positionY.end;
-      return piece;
-    })[0];
+        cordY <= piece.positionY.end) return piece;
+     
+    });
+
+    return pieces[0]
   }
 
   trackMouse(e) {

@@ -8,7 +8,7 @@ const ctx = canvas.getContext("2d");
 
 const board = new Board(ctx, canvas);
 const pieceBoard = new PieceBoard(ctxPiece, canvasPiece);
-const pawn = new Pawn("white", 50, 50, pieceBoard.ctx);
+const pawn = new Pawn("s", 50, 400, pieceBoard.ctx);
 pieceBoard.addPiece(pawn);
 board.draw();
 pieceBoard.draw();

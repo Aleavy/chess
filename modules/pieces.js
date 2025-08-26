@@ -1,10 +1,12 @@
 class Piece {
   tileDistance = 50;
-  constructor(color, x, y) {
+  constructor(color, xTile, yTile) {
     this.color = color;
     this.team = this.color === "w" ? "white" : "black";
-    this.positionX = { start: x - 50, end: x };
-    this.positionY = { start: y - 50, end: y };
+    xTile = xTile * this.tileDistance;
+    yTile = yTile * this.tileDistance;
+    this.validMoves = [];
+    this.position = {x: xTile, y:yTile };
   }
 }
 
@@ -13,92 +15,140 @@ class Pawn extends Piece {
   constructor(color, x, y, context) {
     super(color, x, y);
     this.ctx = context;
+    this.board = context.canvas
+    this.nearEnemys = [];
     this.hasMoved = false;
-    this.limitTiles = 2
+    this.limitTiles = 2;
     this.direction = this.team === "white" ? "down" : "up";
     this.img.src = this.team === "white" ? "white-pawn.webp" : "dark-pawn.webp";
   }
 
-  isInSamePosition(cordY) {
-    return this.positionY.start === cordY;
+  isInSamePosition(cordY, cordX) {
+    return this.position.y === cordY && cordX == this.position.x;
   }
 
-  deletePieceOnCanvas(){
-    this.ctx.clearRect(this.positionX.start, this.positionY.start, 50, 50)
+  deleteThisPieceOnCanvas() {
+    this.ctx.clearRect(
+      this.position.x - this.tileDistance,
+      this.position.y - this.tileDistance,
+      this.tileDistance,
+      this.tileDistance
+    );
   }
 
-  updateCords(cordY=null, cordX=null){
+  deletePieceEaten(cordY, cordX){
+    this.ctx.clearRect(
+      cordX - this.tileDistance,
+      cordY - this.tileDistance,
+      this.tileDistance,
+      this.tileDistance
+    );
+
+    const event = new CustomEvent("piece-was-eat", {detail:{x: cordX, y:cordY}})
+    this.board.dispatchEvent(event)
+  }
+
+  updateCords(cordY = null, cordX = null) {
+    console.log("BEFORE UPDATE: ",this.position);
     let y, x;
-    
-    if (cordY === null){
-      y = this.positionY.start
-    }else{
-      y= cordY
+
+    if (cordY === null) {
+      y = this.position.y;
+    } else {
+      y = cordY;
     }
-    if(cordX === null){
-      x = this.positionX.start
-    }else{
-      x=cordX
+    if (cordX === null) {
+      x = this.position.x;
+    } else {
+      x = cordX;
     }
 
-    this.positionX.start = x
-    this.positionX.end = x + this.tileDistance
-    this.positionY.start = y
-    this.positionY.end = y + this.tileDistance
-    console.log(this)
+    this.position.x = x;
+    this.position.y = y;
+    console.log("AFTER UPDATE: ",this);
   }
 
-  isMovingInRigthDirection(moveTiles){
+  isMovingInRigthDirection(moveTiles) {
     switch (this.direction) {
-      case 'up':
-        return moveTiles < this.positionY.start
-        
-      case 'down':
-        return moveTiles > this.positionY.start
+      case "up":
+        return moveTiles < this.position.y;
+
+      case "down":
+        return moveTiles > this.position.y;
     }
   }
 
-  moveIsInLimit(moveTiles){
-    switch (this.direction){
-      case 'up':
-        if (this.hasMoved){
-          return moveTiles === this.positionY.start - this.tileDistance
-        }else{
-          return moveTiles === this.positionY.start - (this.tileDistance * 2) || moveTiles === this.positionY.start - this.tileDistance 
-        }
-      case 'down':
-        if (this.hasMoved){
-          return moveTiles === this.positionY.start + this.tileDistance
-        }else{
-          return moveTiles === this.positionY.start + (this.tileDistance * 2) || moveTiles === this.positionY.start + this.tileDistance
-      } 
+  // moveIsInLimit(moveTiles) {
+  //   switch (this.direction) {
+  //     case "up":
+  //       if (this.hasMoved) {
+  //         return moveTiles === this.positionY.start - this.tileDistance;
+  //       } else {
+  //         return (
+  //           moveTiles === this.positionY.start - this.tileDistance * 2 ||
+  //           moveTiles === this.positionY.start - this.tileDistance
+  //         );
+  //       }
+  //     case "down":
+  //       if (this.hasMoved) {
+  //         return moveTiles === this.positionY.start + this.tileDistance;
+  //       } else {
+  //         return (
+  //           moveTiles === this.positionY.start + this.tileDistance * 2 ||
+  //           moveTiles === this.positionY.start + this.tileDistance
+  //         );
+  //       }
+  //   }
+  // }
+
+
+
+  cordsEnemyPiece() {
+    console.log(this.direction);
+    let y;
+    if (this.direction === "down") {
+      y = this.position.y + this.tileDistance;
+    } else {
+      y = this.position.y - this.tileDistance;
+    }
+    const xRigth = this.position.x + this.tileDistance;
+    const xLeft = this.position.x - this.tileDistance;
+    console.log(
+      "cords of enemys pawn: ",
+      { cords: { x: xRigth, y } },
+      { cords: { x: xLeft, y } }
+    );
+    return [{ cords: { x: xRigth, y } }, 
+            { cords: { x: xLeft, y } }
+          ];
   }
-}
 
-  move(cordY) {
-    const moveTiles = cordY * this.tileDistance;
-    if (this.isInSamePosition(moveTiles)) return;
-    if(!this.isMovingInRigthDirection(moveTiles))return;  
-    if (!this.moveIsInLimit(moveTiles))return;
-    console.log("moving", moveTiles);
+  move(cordY, cordX) {
+    if (this.isInSamePosition(cordY, cordX)) return;
+    if (!this.isMovingInRigthDirection(cordY)) return;
+    console.log("moving", cordY);
 
-    this.deletePieceOnCanvas()
+    this.deleteThisPieceOnCanvas();
+    if(this.position.x !== cordX){
+      this.deletePieceEaten(cordY=cordY, cordX=cordX)
+    }
+    console.log("POSITIONS X: ",this.position.x, cordX)
     this.ctx.drawImage(
       this.img,
       0,
       0,
       this.img.naturalWidth,
       this.img.naturalHeight,
-      this.positionX.start,
-      moveTiles,
-      50,
-      50
+      cordX - this.tileDistance,
+      cordY - this.tileDistance,
+      this.tileDistance,
+      this.tileDistance
     );
-    if (!this.hasMoved){
+    if (!this.hasMoved) {
       this.hasMoved = true;
-      this.limitTiles = 1
-      }
-    this.updateCords(cordY=moveTiles)
+      this.limitTiles = 1;
+    }
+    this.updateCords(cordY=cordY, cordX=cordX);
   }
 }
 

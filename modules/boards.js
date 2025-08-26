@@ -1,5 +1,6 @@
 const whiteTileColor = "#ffffff";
 const brownTileColor = "#5a280f";
+const greenTileColor = "#74c476";
 const dataLog = document.getElementById("data");
 
 dataLog.innerText = `W- ${canvas.width} H- ${canvas.height}`;
@@ -47,41 +48,153 @@ class Board {
 }
 
 class PieceBoard extends Board {
-  constructor(context, canvas) {
+  constructor(context, canvas, tilesBoardContext) {
     super(context, canvas);
     this.pieces = [];
-    this.current_piece = null
+    this.tilesBoardContext = tilesBoardContext
+    this.current_piece = null;
     this.canvas.addEventListener("mousemove", (e) => this.trackMouse(e));
     this.canvas.addEventListener("mousedown", (e) => {
-      this.current_piece = this.selectPiece(e);
+      let {moveTilesX, moveTilesY} = this.calculateTilesDistance(e)
+      const cords = { y: moveTilesY, x: moveTilesX };
+      this.current_piece = this.selectPiece(cords);
+      if (this.current_piece){
+        const enemyPieces = this.selectPieces(
+          this.current_piece.cordsEnemyPiece()
+        );
+        this.current_piece.nearEnemies = enemyPieces
+        this.setValidMoves(this.current_piece)
+        this.showValidMoves(this.current_piece)
+
+        console.log(this.current_piece.nearEnemies)
+      }
     });
+    this.canvas.addEventListener("piece-was-eat", (e)=>{
+      const pieceEaten = this.selectPiece({x : e.detail.x, y: e.detail.y})
+      this.pieces = this.pieces.filter((piece) => piece !== pieceEaten)
+    })
     this.canvas.addEventListener("mouseup", (e) => {
-      const tilesY = Math.floor(e.offsetY / this.tileDistance);
-      const tilesX = Math.floor(e.offsetX / this.tileDistance);;
-      if(this.current_piece){
-        this.current_piece.move(tilesY)
-        this.current_piece = null;
+      let {moveTilesX, moveTilesY} = this.calculateTilesDistance(e)
+      if (this.current_piece) {
+
+        // console.log(this.current_piece.nearEnemies)
+        // console.log("near enemies: ", this.nearEnemies)
+
+        console.log("VALID MOVES", this.current_piece.validMoves)
+        if(this.checkValidMoves(moveTilesY, moveTilesX, this.current_piece)){
+          this.current_piece.move(moveTilesY, moveTilesX);
+          console.log("PIECES CURRENT: ", this.pieces)
+          this.current_piece = null;
+        }
       }
     });
   }
 
-  selectPiece(e) {
-    console.log(e.offsetY);
-    const piece = this.filterPiece(e.offsetX, e.offsetY);
-    console.log(piece)
-    return piece}
+  showValidMoves(piece){
+    for (const move of piece.validMoves){
+      this.tilesBoardContext.fillStyle = greenTileColor
+      console.log("MOVE: ",move)
+      this.tilesBoardContext.fillRect(move.x - this.tileDistance, move.y - this.tileDistance, this.tileDistance, this.tileDistance)
+    }
+
+  }
+
+  calculateTilesDistance(e){
+    const tilesY = Math.floor((e.offsetY+ this.tileDistance) / this.tileDistance);
+    const tilesX = Math.floor((e.offsetX + this.tileDistance) / this.tileDistance);
+    console.log("TILES: ", tilesX, tilesY)
+    const moveTilesY = tilesY * this.tileDistance;
+    const moveTilesX = tilesX * this.tileDistance;
+    return {moveTilesX, moveTilesY}
+  }
+
+  setValidMoves(piece){
+    let limit = piece.limitTiles
+    const cords = []
+    const frontPieces = []
+    if (piece.nearEnemies?.length > 0){
+      piece.nearEnemies.forEach(piece => {
+        let enemyCord = {x: piece.position.x, y: piece.position.y}
+        cords.push(enemyCord)
+      });
+    }
+    if (piece.direction === "up"){
+      for (limit; limit > 0 ; limit--){
+        const y = piece.position.y - (limit * piece.tileDistance)
+        const cord = {x: piece.position.x, y}
+        if(this.checkFrontPiece(cord)){
+          frontPieces.push(cord)
+        }else if (cord.x < frontPieces[0]?.x ){
+          continue
+        }else{
+          cords.push(cord)
+        }
+      }
+    }else{
+      for (limit; limit > 0 ; limit--){
+        const y = piece.position.y + (limit * piece.tileDistance)
+        const cord = {x: piece.position.x, y}
+        if(this.checkFrontPiece(cord)){
+          frontPieces.push(cord)
+        }else if (frontPieces && cord.x > frontPieces[0]?.x ){
+          continue
+        }else{
+          cords.push(cord)
+        }
+      }
+    }
+    piece.validMoves = cords
+  }
+
+  checkValidMoves(cordY, cordX, piece){
+    let valid = false;
+    for (let cord of piece.validMoves){
+      console.log("XY", cord)
+      console.log("cordsyx: ", cordX, cordY)
+      if (cordX === cord.x && cordY === cord.y) {
+        valid = true
+      };
+    }
+    return valid;
+  }
+
+
+  checkFrontPiece(cords){
+    return this.pieces.find((piece)=> piece.position.x === cords.x && piece.position.y == cords.y)
+  }
+
+  selectPieces(cordsArgs) {
+    const selectedPieces = [];
+    for (const arg of cordsArgs) {
+      console.log("args", arg);
+      const piece = this.filterPiece(arg.cords.x, arg.cords.y);
+      console.log("current piece: ", piece);
+      if (piece.length > 0) {
+        selectedPieces.push(piece[0]);
+      }
+    }
+    console.log("selected pieces: ", selectedPieces);
+    return selectedPieces;
+  }
+
+  selectPiece(cordsArg) {
+    console.log("Piecesarg", cordsArg)
+    const pieces = this.filterPiece(cordsArg.x, cordsArg.y);
+    return pieces[0];
+  }
+
 
   filterPiece(cordX, cordY) {
-    console.log(cordX, cordY)
-    const pieces =  this.pieces.filter((piece) => {
-      if(piece.positionX.start <= cordX &&
-        cordX <= piece.positionX.end &&
-        piece.positionY.start <= cordY &&
-        cordY <= piece.positionY.end) return piece;
-     
+    console.log(cordX, cordY);
+    const pieces = this.pieces.filter((piece) => {
+      if (
+        piece.position.x === cordX &&
+        piece.position.y === cordY
+      )
+        return piece;
     });
 
-    return pieces[0]
+    return pieces;
   }
 
   trackMouse(e) {
@@ -99,10 +212,10 @@ class PieceBoard extends Board {
           0,
           piece.img.naturalWidth,
           piece.img.naturalHeight,
-          piece.positionX.start,
-          piece.positionY.start,
-          50,
-          50
+          piece.position.x - this.tileDistance,
+          piece.position.y - this.tileDistance,
+          this.tileDistance,
+          this.tileDistance
         );
         console.log("Drawed: ", piece);
       };
